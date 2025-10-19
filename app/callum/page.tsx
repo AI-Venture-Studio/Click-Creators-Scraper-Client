@@ -23,7 +23,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/callum-dashboard")
+      router.push("/configure")
     }
   }, [isAuthenticated, isLoading, router])
 
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
     if (username === validUsername && password === validPassword && otp === validOTP) {
       login() // Set authentication state
-      router.push("/callum-dashboard")
+      router.push("/configure")
     } else {
       setError("Invalid credentials. Please try again.")
     }

@@ -7,17 +7,9 @@ import { DependenciesCard } from "@/components/dependencies-card"
 import { PaymentsTable } from "@/components/payments-table"
 import { CampaignsTable } from "@/components/campaigns-table"
 import { UsernameStatusCard } from "@/components/username-status-card"
+import { LogoutConfirmationDialog } from "@/components/logout-confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
 import { AssignmentProgressProvider } from "@/contexts/assignment-progress-context"
 import { GlobalAssignmentProgress } from "@/components/global-assignment-progress"
@@ -71,12 +63,6 @@ export default function DashboardPage() {
     setShowLogoutDialog(true)
   }
 
-  const confirmLogout = () => {
-    logout() // Clear authentication state
-    router.push("/callum")
-    setShowLogoutDialog(false)
-  }
-
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/callum")
@@ -118,32 +104,9 @@ export default function DashboardPage() {
                 />
               </div>
             </div>
-            <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Confirm Logout</DialogTitle>
-                  <DialogDescription>
-                    Are you sure you want to logout? You will be redirected to the login page.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowLogoutDialog(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={confirmLogout}>
-                    Yes, Logout
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
           </div>
           
           {/* Username Status Card */}
@@ -188,6 +151,12 @@ export default function DashboardPage() {
             Built by AIVS, 2025
           </footer>
         </div>
+
+        {/* Logout Confirmation Dialog */}
+        <LogoutConfirmationDialog
+          open={showLogoutDialog}
+          onOpenChange={setShowLogoutDialog}
+        />
       </div>
     </AssignmentProgressProvider>
   )
