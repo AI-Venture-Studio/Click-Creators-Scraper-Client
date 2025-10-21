@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { ExternalLink, X } from 'lucide-react';
 
 interface AirtableLinkDialogProps {
   open: boolean;
@@ -87,17 +87,23 @@ export function AirtableLinkDialog({
             <div className="space-y-2 text-sm">
               <p className="font-medium">Follow these steps:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Navigate to <strong>AIVS Scraper Workspace</strong></li>
-                <li>Click on <strong>"Create"</strong></li>
-                <li>Select <strong>"Build an app on your own"</strong></li>
-                <li>Rename the base to:
-                  <div className="mt-2 p-2 bg-muted rounded-md font-mono text-xs">
-                    {influencerName}'s {platform} Job
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Example: "FitMomGhana's Instagram Job"
-                  </p>
-                </li>
+            <li>Click on the icon to redirect to the <strong>Airtable Workspace</strong> 
+              <a 
+                href="https://airtable.com/workspaces/wspQtCYFXE7T72rkW?" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 ml-2 text-blue-600 hover:text-blue-800 underline"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </li>
+            <li>Click on <strong>"Create"</strong></li>
+            <li>Select <strong>"Build an app on your own"</strong></li>
+            <li>Rename the base to:
+              <div className="mt-2 p-2 bg-muted rounded-md font-mono text-xs">
+                {influencerName}'s {platform} Job
+              </div>
+            </li>
               </ol>
             </div>
           </DialogDescription>
