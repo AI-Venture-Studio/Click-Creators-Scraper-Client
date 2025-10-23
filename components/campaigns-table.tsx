@@ -14,23 +14,33 @@ interface Campaign {
   created_at: string
 }
 
-export function CampaignsTable() {
+interface CampaignsTableProps {
+  baseId?: string // Add baseId prop for multi-tenant filtering
+}
+
+export function CampaignsTable({ baseId }: CampaignsTableProps) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCampaigns()
-  }, [])
+  }, [baseId])
 
   const fetchCampaigns = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('campaigns')
         .select('campaign_id, campaign_date, total_assigned, status, created_at')
-        .order('campaign_date', { ascending: false })
+      
+      // Filter by baseId if provided
+      if (baseId) {
+        query = query.eq('base_id', baseId)
+      }
+      
+      const { data, error } = await query.order('campaign_date', { ascending: false })
       
       if (error) throw error
       

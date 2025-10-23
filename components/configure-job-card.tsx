@@ -24,14 +24,15 @@ const platforms: Platform[] = ['Instagram', 'Threads', 'TikTok', 'X'];
 export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJobCardProps) {
   const [influencer, setInfluencer] = useState('');
   const [platform, setPlatform] = useState<Platform | ''>('');
-  const [numVAs, setNumVAs] = useState<number>(1);
+  const [numVAs, setNumVAs] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     console.log('Form submitted with:', { influencer, platform, numVAs });
     
-    if (!influencer.trim() || !platform || numVAs < 1) {
+    const numVAsInt = parseInt(numVAs) || 0;
+    if (!influencer.trim() || !platform || numVAsInt < 1) {
       console.log('Form validation failed');
       return;
     }
@@ -40,11 +41,11 @@ export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJo
     onSubmit({
       influencer: influencer.trim(),
       platform,
-      numVAs,
+      numVAs: numVAsInt,
     });
   };
 
-  const isValid = influencer.trim() && platform && numVAs >= 1;
+  const isValid = influencer.trim() && platform && numVAs && parseInt(numVAs) >= 1;
 
   return (
     <Card className="w-full">
@@ -94,8 +95,9 @@ export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJo
               id="numVAs"
               type="number"
               min="1"
+              placeholder="Enter number of VAs"
               value={numVAs}
-              onChange={(e) => setNumVAs(parseInt(e.target.value) || 1)}
+              onChange={(e) => setNumVAs(e.target.value)}
               required
               disabled={isSubmitting}
             />

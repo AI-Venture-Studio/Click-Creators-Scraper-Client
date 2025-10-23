@@ -25,12 +25,14 @@ interface EditSourceProfilesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onProfilesUpdated?: () => void
+  baseId?: string // Add baseId prop for multi-tenant filtering
 }
 
 export function EditSourceProfilesDialog({ 
   open, 
   onOpenChange,
-  onProfilesUpdated 
+  onProfilesUpdated,
+  baseId
 }: EditSourceProfilesDialogProps) {
   const [profiles, setProfiles] = useState<SourceProfile[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -44,10 +46,16 @@ export function EditSourceProfilesDialog({
   const fetchProfiles = useCallback(async () => {
     setIsLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('source_profiles')
         .select('id, username')
-        .order('username', { ascending: true })
+      
+      // Filter by baseId if provided
+      if (baseId) {
+        query = query.eq('base_id', baseId)
+      }
+      
+      const { data, error } = await query.order('username', { ascending: true })
       
       if (error) throw error
       
@@ -62,7 +70,7 @@ export function EditSourceProfilesDialog({
     } finally {
       setIsLoading(false)
     }
-  }, [toast])
+  }, [toast, baseId])
 
   useEffect(() => {
     if (open) {
@@ -129,7 +137,11 @@ export function EditSourceProfilesDialog({
       
       const { data, error } = await supabase
         .from('source_profiles')
-        .insert([{ id: profileId, username }])
+        .insert([{ 
+          id: profileId, 
+          username,
+          base_id: baseId || 'default_instagram' // Use provided baseId or default
+        }])
         .select()
       
       if (error) throw error
@@ -192,10 +204,19 @@ export function EditSourceProfilesDialog({
 
     setIsClearing(true)
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('source_profiles')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all (using a condition that's always true)
+      
+      // Only delete profiles for the current base
+      if (baseId) {
+        query = query.eq('base_id', baseId)
+      } else {
+        // If no baseId provided, delete all default_instagram profiles
+        query = query.eq('base_id', 'default_instagram')
+      }
+      
+      const { error } = await query.neq('id', '00000000-0000-0000-0000-000000000000') // Ensure condition exists
       
       if (error) throw error
       
@@ -204,7 +225,7 @@ export function EditSourceProfilesDialog({
       setPassword("")
       toast({
         title: "All profiles cleared",
-        description: "All source profiles have been deleted from the database.",
+        description: "All source profiles for this job have been deleted.",
       })
     } catch (error) {
       console.error('Error clearing profiles:', error)

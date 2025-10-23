@@ -16,7 +16,7 @@ export function RecentItem({ job, onDelete }: RecentItemProps) {
   const { toast } = useToast();
 
   const handleClick = () => {
-    router.push(`/callum-dashboard/${job.jobId}`);
+    router.push(`/callum-dashboard?job=${job.jobId}`);
   };
 
   const handleDelete = (e: React.MouseEvent) => {

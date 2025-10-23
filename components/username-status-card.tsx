@@ -11,9 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 interface UsernameStatusCardProps {
   onStatusChange?: (isReady: boolean, unusedCount: number, statusMessage: string) => void
+  baseId?: string // Add baseId prop for multi-tenant filtering
 }
 
-export function UsernameStatusCard({ onStatusChange }: UsernameStatusCardProps) {
+export function UsernameStatusCard({ onStatusChange, baseId }: UsernameStatusCardProps) {
   const [unusedCount, setUnusedCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,10 +29,17 @@ export function UsernameStatusCard({ onStatusChange }: UsernameStatusCardProps) 
     setError(null)
     
     try {
-      const { count, error } = await supabase
+      let query = supabase
         .from('global_usernames')
         .select('*', { count: 'exact', head: true })
         .eq('used', false)
+      
+      // Filter by baseId if provided
+      if (baseId) {
+        query = query.eq('base_id', baseId)
+      }
+      
+      const { count, error } = await query
       
       if (error) throw error
       
@@ -52,7 +60,7 @@ export function UsernameStatusCard({ onStatusChange }: UsernameStatusCardProps) 
     } finally {
       setIsLoading(false)
     }
-  }, [dailyTarget, onStatusChange])
+  }, [dailyTarget, onStatusChange, baseId])
 
   useEffect(() => {
     fetchUnusedCount()

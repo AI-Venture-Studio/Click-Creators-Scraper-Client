@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { useSidebar } from '@/components/ui/sidebar';
-import { ConfigureBreadcrumb } from '@/components/configure-breadcrumb';
 import { ConfigureJobCard } from '@/components/configure-job-card';
 import { Platform } from '@/lib/recents';
 
@@ -35,15 +34,18 @@ export function ConfigureContent({ onJobSubmit, isSubmitting }: ConfigureContent
         </div>
       )}
       
-      <main className={`flex-1 p-6 ${!open ? 'pl-20' : ''}`}>
-        <ConfigureBreadcrumb />
-        
-        <div className="max-w-2xl mx-auto">
+      <main className={`flex-1 min-h-screen flex flex-col justify-center p-6 ${!open ? 'pl-20' : ''}`}>
+        <div className="max-w-2xl mx-auto w-full">
           <ConfigureJobCard
             onSubmit={onJobSubmit}
             isSubmitting={isSubmitting}
           />
         </div>
+        
+        {/* Footer */}
+        <footer className="mt-12 text-center text-sm text-muted-foreground">
+          Built by AIVS, 2025
+        </footer>
       </main>
     </div>
   );

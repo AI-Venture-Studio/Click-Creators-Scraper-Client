@@ -54,9 +54,10 @@ interface DependenciesCardProps {
   onScrapingComplete?: (accounts: ScrapedAccount[], totalFiltered: number) => void
   onScrapingStart?: () => void
   onError?: (error: string) => void
+  baseId?: string // Add baseId prop for multi-tenant filtering
 }
 
-export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError }: DependenciesCardProps) {
+export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError, baseId }: DependenciesCardProps) {
   const [inputValue, setInputValue] = useState("")
   const [accounts, setAccounts] = useState<InstagramAccount[]>([])
   const [totalScrapeCount, setTotalScrapeCount] = useState<number>(150)
@@ -159,10 +160,16 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
     setIsLoadingProfiles(true)
     
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('source_profiles')
         .select('id, username')
-        .order('username', { ascending: true })
+      
+      // Filter by baseId if provided
+      if (baseId) {
+        query = query.eq('base_id', baseId)
+      }
+      
+      const { data, error } = await query.order('username', { ascending: true })
       
       if (error) {
         throw error
@@ -465,6 +472,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onProfilesUpdated={loadSourceProfiles}
+        baseId={baseId}
       />
     </Card>
   )

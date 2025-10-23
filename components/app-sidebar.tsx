@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { Instagram, MessageCircle, Music2, Twitter, LogOut, Folder } from 'lucide-react';
+import { Instagram, MessageCircle, Music2, Twitter, LogOut, Folder, Plus } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -74,6 +74,19 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* New Scraping Job Button */}
+        <div className="px-3 pt-4 pb-2">
+          <Button 
+            className="w-full justify-start gap-2" 
+            onClick={() => router.push('/configure')}
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Scraping Job</span>
+          </Button>
+        </div>
+
+        <Separator className="my-2" />
+
         {/* Social Media Folders */}
         <SidebarGroup>
           <SidebarGroupLabel>Platforms</SidebarGroupLabel>

@@ -2,19 +2,18 @@
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
-import { ConfigureBreadcrumb } from '@/components/configure-breadcrumb';
 import { JobListByPlatform } from '@/components/job-list-by-platform';
 import { useSidebar } from '@/components/ui/sidebar';
 import Image from 'next/image';
 
 function ThreadsJobsContent() {
-  const { open } = useSidebar();
+  const { open, toggleSidebar } = useSidebar();
 
   return (
     <>
-      <header className="flex items-center justify-between border-b px-6 py-3">
+      <header className="flex items-center justify-between px-6 py-3">
         {!open && (
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => document.querySelector('[data-sidebar-trigger]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={toggleSidebar}>
             <div className="relative w-8 h-8 rounded-full overflow-hidden">
               <Image
                 src="/aivs logo.JPG"
@@ -26,7 +25,6 @@ function ThreadsJobsContent() {
             </div>
           </div>
         )}
-        <ConfigureBreadcrumb />
       </header>
 
       <main className="flex-1 p-6">
@@ -38,7 +36,12 @@ function ThreadsJobsContent() {
             </p>
           </div>
           
-          <JobListByPlatform platform="Threads" />
+          <JobListByPlatform platform="threads" />
+          
+          {/* Footer */}
+          <footer className="mt-12 text-center text-sm text-muted-foreground">
+            Built by AIVS, 2025
+          </footer>
         </div>
       </main>
     </>

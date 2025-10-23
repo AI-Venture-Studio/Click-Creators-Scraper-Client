@@ -18,6 +18,7 @@ type DialogState = 'none' | 'airtable-link' | 'progress';
 export default function ConfigurePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>('none');
+  const [airtableLink, setAirtableLink] = useState<string>('');
   const [currentJobData, setCurrentJobData] = useState<{
     jobId: string;
     influencer: string;
@@ -28,25 +29,7 @@ export default function ConfigurePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { logout } = useAuth();
-
-  // Session logout on page refresh
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Set a flag in sessionStorage to indicate a refresh is happening
-      sessionStorage.setItem('page-refreshed', 'true');
-    };
-
-    // Check if this is a fresh load after a refresh
-    if (sessionStorage.getItem('page-refreshed') === 'true') {
-      sessionStorage.removeItem('page-refreshed');
-      logout();
-      router.push('/callum');
-      return;
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [logout, router]);
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
   const handleJobSubmit = (data: {
     influencer: string;
@@ -81,31 +64,20 @@ export default function ConfigurePage() {
     });
   };
 
-  const handleAirtableLinkSubmit = async (airtableLink: string) => {
+  const handleAirtableLinkSubmit = async (submittedLink: string) => {
     if (!currentJobData) return;
 
-    console.log('Airtable link submitted:', airtableLink);
+    console.log('Airtable link submitted:', submittedLink);
     console.log('Job data to be saved:', currentJobData);
 
-    // TODO: Database integration will be configured later
-    // This is where we'll create the job in Supabase with:
-    // - influencer: currentJobData.influencer
-    // - platform: currentJobData.platform
-    // - num_vas: currentJobData.numVAs
-    // - airtable_link: airtableLink
-    // - status: 'queued'
+    // Store the Airtable link
+    setAirtableLink(submittedLink);
 
-    // For now, show progress dialog
+    // Show progress dialog - this will now actually create the tables
     setDialogState('progress');
-    
-    // Show a toast to indicate the data was captured
-    toast({
-      title: 'Data Captured',
-      description: `Job for ${currentJobData.influencer} on ${currentJobData.platform} will be created (DB integration pending)`,
-    });
   };
 
-  const handleProgressComplete = () => {
+  const handleProgressComplete = (jobId?: string) => {
     if (!currentJobData) return;
 
     // Show success toast
@@ -118,8 +90,14 @@ export default function ConfigurePage() {
     setDialogState('none');
     setIsSubmitting(false);
     
-    // Redirect to dashboard
-    router.push('/callum-dashboard');
+    // If we have a job ID, redirect to that job's instance
+    // Otherwise, redirect to the platform's jobs list
+    if (jobId) {
+      router.push(`/callum-dashboard?job=${jobId}`);
+    } else {
+      const platform = currentJobData.platform.toLowerCase();
+      router.push(`/${platform}-jobs`);
+    }
   };
 
   return (
@@ -148,6 +126,11 @@ export default function ConfigurePage() {
       <AirtableProgressDialog
         open={dialogState === 'progress'}
         onComplete={handleProgressComplete}
+        airtableLink={airtableLink}
+        numVAs={currentJobData?.numVAs}
+        baseName={currentJobData ? `${currentJobData.influencer}'s ${currentJobData.platform} Job` : undefined}
+        influencerName={currentJobData?.influencer}
+        platform={currentJobData?.platform.toLowerCase() as 'instagram' | 'threads' | 'tiktok' | 'x'}
       />
     </SidebarProvider>
   );
