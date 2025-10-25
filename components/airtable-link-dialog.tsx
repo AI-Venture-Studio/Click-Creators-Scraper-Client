@@ -97,14 +97,14 @@ export function AirtableLinkDialog({
                 <ExternalLink className="h-4 w-4" />
               </a>
             </li>
-            <li>Click on <strong>"Create"</strong></li>
-            <li>Select <strong>"Build an app on your own"</strong></li>
+            <li>Click on <strong>&quot;Create&quot;</strong></li>
+            <li>Select <strong>&quot;Build an app on your own&quot;</strong></li>
             <li>Rename the base to:
               <div className="mt-2 p-2 bg-muted rounded-md font-mono text-xs">
-                {influencerName}'s {platform} Campaign
+                {influencerName}&apos;s {platform} Campaign
               </div>
             </li>
-            <li>Once created, copy the URL from your browser's address bar and paste it below.</li>
+            <li>Once created, copy the URL from your browser&apos;s address bar and paste it below.</li>
               </ol>
             </div>
           </DialogDescription>

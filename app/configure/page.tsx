@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ConfigureContent } from '@/components/configure-content';
 import { AirtableLinkDialog } from '@/components/airtable-link-dialog';
 import { AirtableProgressDialog } from '@/components/airtable-progress-dialog';
-import { Platform, addRecent } from '@/lib/recents';
-import { supabase } from '@/lib/supabase';
+import { Platform } from '@/lib/recents';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { usePageReset } from '@/hooks/use-page-reset';

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DependenciesCard } from "@/components/dependencies-card"
 import { PaymentsTable } from "@/components/payments-table"
@@ -15,8 +15,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { AssignmentProgressProvider } from "@/contexts/assignment-progress-context"
 import { GlobalAssignmentProgress } from "@/components/global-assignment-progress"
 import { useSidebar } from "@/components/ui/sidebar"
-import { getJobById } from "@/lib/scraping-jobs"
-import type { ScrapingJob } from "@/types/scraping-jobs"
 import { useBase } from "@/contexts/base-context"
 import { usePageReset, useResetOnChange } from "@/hooks/use-page-reset"
 
@@ -163,7 +161,7 @@ function DashboardContent() {
           {activeJob && (
             <div className="mb-6 p-4 border rounded-lg bg-card">
               <h2 className="text-xl font-semibold mb-2">
-                {activeJob.influencer_name}'s {activeJob.platform.charAt(0).toUpperCase() + activeJob.platform.slice(1)} Campaign
+                {activeJob.influencer_name}&apos;s {activeJob.platform.charAt(0).toUpperCase() + activeJob.platform.slice(1)} Campaign
               </h2>
               <p className="text-sm text-muted-foreground">
                 <a 

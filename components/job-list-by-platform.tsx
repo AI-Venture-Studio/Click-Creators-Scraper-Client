@@ -17,7 +17,6 @@ import {
 import { 
   Platform, 
   ScrapingJobWithStats,
-  STATUS_CONFIG,
   isLegacyJob,
   getJobDisplayName
 } from '@/types/scraping-jobs';
@@ -26,7 +25,7 @@ import {
   getJobStatisticsByBaseId,
   updateJobStatus 
 } from '@/lib/scraping-jobs';
-import { Play, Pause, Archive, Eye, Plus, RefreshCw, ExternalLink } from 'lucide-react';
+import { Plus, RefreshCw, ExternalLink } from 'lucide-react';
 import { usePageReset } from '@/hooks/use-page-reset';
 
 interface JobListByPlatformProps {

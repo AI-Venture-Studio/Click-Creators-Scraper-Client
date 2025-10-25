@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { Instagram, MessageCircle, Music2, Twitter, LogOut, Folder, Plus } from 'lucide-react';
+import { Instagram, MessageCircle, Music2, Twitter, LogOut, Plus } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,

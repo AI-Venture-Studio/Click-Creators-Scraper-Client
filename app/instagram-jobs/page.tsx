@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { JobListByPlatform } from '@/components/job-list-by-platform';
 import { useSidebar } from '@/components/ui/sidebar';

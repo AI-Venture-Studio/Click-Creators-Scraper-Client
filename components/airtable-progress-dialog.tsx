@@ -117,6 +117,11 @@ export function AirtableProgressDialog({
           message?: string;
           tables_created?: number;
           tables_skipped?: number;
+          existing_job?: {
+            job_id: string;
+            influencer_name: string;
+            platform: string;
+          };
         }>('/api/airtable/create-base', baseIdToUse, {
           base_id: extractedBaseId,
           num_vas: numVAs,
@@ -129,6 +134,22 @@ export function AirtableProgressDialog({
         setStatusMessage('Verifying table creation...');
 
         if (!result.success) {
+          // Check if this is a duplicate base_id error
+          if (result.error === 'duplicate_base_id') {
+            const existingJob = result.existing_job;
+            const errorMsg = existingJob 
+              ? `This Airtable base is already being used by "${existingJob.influencer_name}" on ${existingJob.platform}. Please use a different Airtable base.`
+              : result.message || 'This Airtable base is already in use by another campaign.';
+            
+            toast({
+              title: 'Duplicate Campaign Detected',
+              description: errorMsg,
+              variant: 'destructive',
+            });
+            
+            throw new Error(errorMsg);
+          }
+          
           throw new Error(result.error || 'Table creation failed');
         }
 
