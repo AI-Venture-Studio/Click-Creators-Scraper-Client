@@ -19,16 +19,17 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RecentItem } from '@/components/recent-item';
 import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { Platform, getRecents, RecentJob } from '@/lib/recents';
 import { useAuth } from '@/contexts/auth-context';
 
 const platforms = [
-  { name: 'Instagram' as Platform, icon: Instagram, route: '/instagram-jobs' },
-  { name: 'Threads' as Platform, icon: MessageCircle, route: '/threads-jobs' },
-  { name: 'TikTok' as Platform, icon: Music2, route: '/tiktok-jobs' },
-  { name: 'X' as Platform, icon: Twitter, route: '/x-jobs' },
+  { name: 'Instagram' as Platform, icon: Instagram, route: '/instagram-jobs', enabled: true },
+  { name: 'Threads' as Platform, icon: MessageCircle, route: '/threads-jobs', enabled: false },
+  { name: 'TikTok' as Platform, icon: Music2, route: '/tiktok-jobs', enabled: false },
+  { name: 'X' as Platform, icon: Twitter, route: '/x-jobs', enabled: false },
 ];
 
 export function AppSidebar() {
@@ -81,7 +82,7 @@ export function AppSidebar() {
             onClick={() => router.push('/configure')}
           >
             <Plus className="h-4 w-4" />
-            <span>New Scraping Job</span>
+            <span>New Scraping Campaign</span>
           </Button>
         </div>
 
@@ -92,20 +93,39 @@ export function AppSidebar() {
           <SidebarGroupLabel>Platforms</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {platforms.map((platform) => {
-                const Icon = platform.icon;
-                return (
-                  <SidebarMenuItem key={platform.name}>
+              <TooltipProvider>
+                {platforms.map((platform) => {
+                  const Icon = platform.icon;
+                  const menuButton = (
                     <SidebarMenuButton
-                      onClick={() => router.push(platform.route)}
+                      onClick={() => platform.enabled && router.push(platform.route)}
                       isActive={pathname === platform.route}
+                      disabled={!platform.enabled}
+                      className={!platform.enabled ? 'opacity-50 cursor-not-allowed' : ''}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{platform.name}</span>
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+                  );
+
+                  return (
+                    <SidebarMenuItem key={platform.name}>
+                      {!platform.enabled ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {menuButton}
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>Coming soon</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        menuButton
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </TooltipProvider>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -114,11 +134,11 @@ export function AppSidebar() {
 
         {/* Recents Section */}
         <SidebarGroup>
-          <SidebarGroupLabel>Recent Jobs</SidebarGroupLabel>
+          <SidebarGroupLabel>Recent Campaigns</SidebarGroupLabel>
           <SidebarGroupContent>
             {recents.length === 0 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">
-                No recent jobs
+                No recent campaigns
               </p>
             ) : (
               <div className="space-y-1">

@@ -101,9 +101,10 @@ export function AirtableLinkDialog({
             <li>Select <strong>"Build an app on your own"</strong></li>
             <li>Rename the base to:
               <div className="mt-2 p-2 bg-muted rounded-md font-mono text-xs">
-                {influencerName}'s {platform} Job
+                {influencerName}'s {platform} Campaign
               </div>
             </li>
+            <li>Once created, copy the URL from your browser's address bar and paste it below.</li>
               </ol>
             </div>
           </DialogDescription>

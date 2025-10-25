@@ -19,7 +19,12 @@ interface ConfigureJobCardProps {
   isSubmitting?: boolean;
 }
 
-const platforms: Platform[] = ['Instagram', 'Threads', 'TikTok', 'X'];
+const platforms: { name: Platform; enabled: boolean }[] = [
+  { name: 'Instagram', enabled: true },
+  { name: 'Threads', enabled: false },
+  { name: 'TikTok', enabled: false },
+  { name: 'X', enabled: false },
+];
 
 export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJobCardProps) {
   const [influencer, setInfluencer] = useState('');
@@ -50,9 +55,9 @@ export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJo
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Create Scraping Job</CardTitle>
+        <CardTitle>Create Scraping Campaign</CardTitle>
         <CardDescription>
-          Set up a new scraping job
+          Set up a new scraping campaign
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -81,8 +86,14 @@ export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJo
               </SelectTrigger>
               <SelectContent>
                 {platforms.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
+                  <SelectItem 
+                    key={p.name} 
+                    value={p.name}
+                    disabled={!p.enabled}
+                    className={!p.enabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  >
+                    {p.name}
+                    {!p.enabled && <span className="ml-2 text-xs text-muted-foreground">(Coming soon)</span>}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -108,7 +119,7 @@ export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJo
             className="w-full"
             disabled={!isValid || isSubmitting}
           >
-            {isSubmitting ? 'Creating Job...' : 'Create Job'}
+            {isSubmitting ? 'Creating Campaign...' : 'Create Campaign'}
           </Button>
         </form>
       </CardContent>

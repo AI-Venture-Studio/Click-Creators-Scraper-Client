@@ -17,6 +17,8 @@ import { GlobalAssignmentProgress } from "@/components/global-assignment-progres
 import { useSidebar } from "@/components/ui/sidebar"
 import { getJobById } from "@/lib/scraping-jobs"
 import type { ScrapingJob } from "@/types/scraping-jobs"
+import { useBase } from "@/contexts/base-context"
+import { usePageReset, useResetOnChange } from "@/hooks/use-page-reset"
 
 interface ScrapedAccount {
   id: string
@@ -26,6 +28,7 @@ interface ScrapedAccount {
 
 function DashboardContent() {
   const { isAuthenticated, isLoading } = useAuth()
+  const { setActiveJobById, baseId, activeJob } = useBase()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { open, toggleSidebar } = useSidebar()
@@ -35,21 +38,52 @@ function DashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [canAssignToVAs, setCanAssignToVAs] = useState(false)
   const [statusMessage, setStatusMessage] = useState("")
-  const [currentJob, setCurrentJob] = useState<ScrapingJob | null>(null)
 
   // Check if we're viewing a specific job
   const jobId = searchParams.get('job')
 
+  // Reset dashboard state when navigating away from this page
+  usePageReset(() => {
+    console.log('[Dashboard] Resetting page state on unmount');
+    setScrapedAccounts([]);
+    setTotalFiltered(0);
+    setIsScrapingLoading(false);
+    setRefreshKey(0);
+    setCanAssignToVAs(false);
+    setStatusMessage('');
+  });
+
+  // Reset dashboard state when job ID changes (switching between jobs)
+  useResetOnChange(jobId, () => {
+    console.log('[Dashboard] Resetting state due to job ID change:', jobId);
+    setScrapedAccounts([]);
+    setTotalFiltered(0);
+    setIsScrapingLoading(false);
+    setRefreshKey(prev => prev + 1);
+    setCanAssignToVAs(false);
+    setStatusMessage('');
+  }, { skipInitial: true });
+
+  // Sync BaseContext with URL job parameter
   useEffect(() => {
     if (jobId) {
-      // Fetch job details
-      getJobById(jobId).then(job => {
-        if (job) {
-          setCurrentJob(job)
-        }
+      console.log('[Dashboard] Syncing BaseContext with job from URL:', jobId)
+      // Set this job as active in BaseContext to ensure all components use the same base_id
+      setActiveJobById(jobId)
+    }
+  }, [jobId, setActiveJobById])
+
+  // Log when base_id changes to help with debugging
+  useEffect(() => {
+    if (baseId && activeJob) {
+      console.log('[Dashboard] Active job and base_id loaded:', {
+        job_id: activeJob.job_id,
+        base_id: baseId,
+        influencer: activeJob.influencer_name,
+        platform: activeJob.platform
       })
     }
-  }, [jobId])
+  }, [baseId, activeJob])
 
     const handleUsernameStatusChange = useCallback((isReady: boolean, unusedCount: number, message: string) => {
     setCanAssignToVAs(isReady)
@@ -126,13 +160,22 @@ function DashboardContent() {
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-7xl mx-auto">
           {/* Show job info if viewing specific job */}
-          {currentJob && (
+          {activeJob && (
             <div className="mb-6 p-4 border rounded-lg bg-card">
               <h2 className="text-xl font-semibold mb-2">
-                {currentJob.influencer_name}'s {currentJob.platform.charAt(0).toUpperCase() + currentJob.platform.slice(1)} Job
+                {activeJob.influencer_name}'s {activeJob.platform.charAt(0).toUpperCase() + activeJob.platform.slice(1)} Campaign
               </h2>
               <p className="text-sm text-muted-foreground">
-                Base ID: {currentJob.airtable_base_id} • VAs: {currentJob.num_vas || 'Not set'} • Status: {currentJob.status}
+                <a 
+                  href={`https://airtable.com/${activeJob.airtable_base_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Airtable Base
+                </a>
+                {' '} • VAs: {activeJob.num_vas || 'Not set'}
+                {' '} • Base ID: <code className="text-xs bg-muted px-1 py-0.5 rounded">{baseId}</code>
               </p>
             </div>
           )}
@@ -145,20 +188,19 @@ function DashboardContent() {
                 Please select a scraping job from the sidebar to view its dashboard.
               </p>
               <Button onClick={() => router.push('/instagram-jobs')}>
-                View Instagram Jobs
+                View Instagram Campaigns
               </Button>
             </div>
           )}
           
           {/* Only show content if a job is selected */}
-          {jobId && currentJob && (
+          {jobId && activeJob && (
             <>
               {/* Username Status Card */}
               <div className="mb-6">
                 <UsernameStatusCard 
                   key={`username-status-${refreshKey}`}
                   onStatusChange={handleUsernameStatusChange}
-                  baseId={currentJob.airtable_base_id}
                 />
               </div>
               
@@ -167,7 +209,6 @@ function DashboardContent() {
                   onScrapingStart={handleScrapingStart}
                   onScrapingComplete={handleScrapingComplete}
                   onError={handleScrapingError}
-                  baseId={currentJob.airtable_base_id}
                 />
                 
                 {/* Tabs for Scraped Accounts and Campaigns */}
@@ -189,7 +230,6 @@ function DashboardContent() {
                   <TabsContent value="campaigns">
                     <CampaignsTable 
                       key={`campaigns-${refreshKey}`}
-                      baseId={currentJob.airtable_base_id}
                     />
                   </TabsContent>
                 </Tabs>

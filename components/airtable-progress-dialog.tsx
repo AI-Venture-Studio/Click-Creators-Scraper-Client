@@ -14,6 +14,8 @@ import { createScrapingJob } from '@/lib/scraping-jobs';
 import { Platform } from '@/types/scraping-jobs';
 import { addRecent } from '@/lib/recents';
 import type { Platform as RecentPlatform } from '@/lib/recents';
+import { useBase } from '@/contexts/base-context';
+import { apiPost } from '@/lib/api';
 
 interface AirtableProgressDialogProps {
   open: boolean;
@@ -39,6 +41,9 @@ export function AirtableProgressDialog({
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false); // Prevent duplicate calls
   const { toast } = useToast();
+  
+  // Get base_id from context
+  const { baseId } = useBase();
 
   useEffect(() => {
     if (!open) {
@@ -93,33 +98,32 @@ export function AirtableProgressDialog({
         if (!baseIdMatch) {
           throw new Error('Invalid Airtable link. Could not extract base ID.');
         }
-        const baseId = baseIdMatch[0];
+        const extractedBaseId = baseIdMatch[0];
 
         setProgress(20);
         setStatusMessage(`Creating ${numVAs} tables in Airtable...`);
 
-        // Call the API to create tables
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
-        const response = await fetch(`${apiUrl}/api/airtable/create-base`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            base_id: baseId,
-            num_vas: numVAs,
-            base_name: baseName || 'Campaign'
-          }),
+        // Call the API to create tables using baseId from context (required for multi-tenancy)
+        // If no active job exists yet, use the extracted baseId as a fallback
+        const baseIdToUse = baseId || extractedBaseId;
+        
+        if (!baseIdToUse) {
+          throw new Error('No base_id available. Please select an active job first.');
+        }
+
+        const result = await apiPost<{
+          success: boolean;
+          error?: string;
+          message?: string;
+          tables_created?: number;
+          tables_skipped?: number;
+        }>('/api/airtable/create-base', baseIdToUse, {
+          base_id: extractedBaseId,
+          num_vas: numVAs,
+          base_name: baseName || 'Campaign'
         });
 
         setProgress(60);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create Airtable tables');
-        }
-
-        const result = await response.json();
 
         setProgress(80);
         setStatusMessage('Verifying table creation...');
@@ -129,23 +133,39 @@ export function AirtableProgressDialog({
         }
 
         setProgress(100);
-        const totalTables = result.tables_created + (result.tables_skipped || 0);
+        const totalTables = (result.tables_created || 0) + (result.tables_skipped || 0);
         setStatusMessage(
-          result.tables_skipped > 0
+          (result.tables_skipped || 0) > 0
             ? `${result.tables_created} new tables created, ${result.tables_skipped} already existed`
             : `Successfully created ${result.tables_created} tables!`
         );
 
         // Save job to Supabase if we have the required info
         let jobId: string | undefined;
-        if (influencerName && platform) {
+        
+        console.log('Checking if we should save to Supabase:', {
+          influencerName,
+          platform,
+          extractedBaseId,
+          shouldSave: !!(influencerName && platform && extractedBaseId)
+        });
+        
+        if (influencerName && platform && extractedBaseId) {
           setProgress(90);
           setStatusMessage('Saving job to database...');
+          
+          console.log('Creating job with data:', {
+            influencer_name: influencerName,
+            platform: platform,
+            airtable_base_id: extractedBaseId,
+            num_vas: numVAs,
+            status: 'active'
+          });
           
           const job = await createScrapingJob({
             influencer_name: influencerName,
             platform: platform,
-            airtable_base_id: baseId,
+            airtable_base_id: extractedBaseId,
             num_vas: numVAs,
             status: 'active'
           });

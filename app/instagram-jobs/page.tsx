@@ -1,13 +1,20 @@
 'use client';
 
+import { useEffect } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { JobListByPlatform } from '@/components/job-list-by-platform';
 import { useSidebar } from '@/components/ui/sidebar';
+import { usePageReset } from '@/hooks/use-page-reset';
 import Image from 'next/image';
 
 function InstagramJobsContent() {
   const { open, toggleSidebar } = useSidebar();
+
+  // Reset page state when navigating away
+  usePageReset(() => {
+    console.log('[InstagramJobs] Resetting page state on unmount');
+  });
 
   return (
     <>
@@ -30,9 +37,9 @@ function InstagramJobsContent() {
       <main className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold mb-2">Instagram Jobs</h1>
+            <h1 className="text-2xl font-bold mb-2">Instagram Campaigns</h1>
             <p className="text-muted-foreground">
-              View and manage all Instagram scraping jobs
+              View and manage all Instagram scraping campaigns
             </p>
           </div>
           

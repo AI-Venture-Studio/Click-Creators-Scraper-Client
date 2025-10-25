@@ -18,14 +18,23 @@ export const supabase = createClient(
  * @returns A Supabase client configured for the specified base
  */
 export function createSupabaseClientWithContext(baseId: string) {
+  if (!baseId) {
+    console.warn('[createSupabaseClientWithContext] No baseId provided!')
+  }
+  
+  console.log('[createSupabaseClientWithContext] Creating client with base_id:', baseId)
+  
   return createClient(
     supabaseUrl || 'https://placeholder.supabase.co',
     supabaseAnonKey || 'placeholder-key',
     {
       global: {
         headers: {
-          'X-Base-Id': baseId
+          'x-base-id': baseId  // Use lowercase to match PostgREST normalization
         }
+      },
+      db: {
+        schema: 'public'
       }
     }
   )

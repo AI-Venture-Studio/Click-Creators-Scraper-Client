@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { supabase } from "@/lib/supabase"
+import { createSupabaseClientWithContext } from "@/lib/supabase"
+import { useBase } from "@/contexts/base-context"
+import { useResetOnChange } from "@/hooks/use-page-reset"
 import { AlertCircle } from "lucide-react"
 
 interface Campaign {
@@ -14,42 +16,69 @@ interface Campaign {
   created_at: string
 }
 
-interface CampaignsTableProps {
-  baseId?: string // Add baseId prop for multi-tenant filtering
-}
-
-export function CampaignsTable({ baseId }: CampaignsTableProps) {
+export function CampaignsTable() {
+  const { baseId, isLoading: isLoadingBase } = useBase()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Reset component state when baseId changes (switching between jobs)
+  useResetOnChange(baseId, () => {
+    console.log('[CampaignsTable] Resetting state due to baseId change');
+    setCampaigns([]);
+    setIsLoading(true);
+    setError(null);
+  }, { skipInitial: true });
+
   useEffect(() => {
-    fetchCampaigns()
-  }, [baseId])
+    if (!isLoadingBase && baseId) {
+      fetchCampaigns()
+    }
+  }, [baseId, isLoadingBase])
 
   const fetchCampaigns = async () => {
+    console.log('[CampaignsTable] fetchCampaigns called, baseId:', baseId)
+    
+    if (!baseId) {
+      console.warn('[CampaignsTable] No baseId provided for fetching campaigns')
+      setError('No active job found')
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
+    
     try {
-      let query = supabase
+      console.log('[CampaignsTable] Fetching campaigns for base_id:', baseId)
+      
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      console.log('[CampaignsTable] Supabase client created')
+      
+      // Use the same pattern as edit-source-profiles-dialog: context-aware client + explicit filter
+      const { data, error } = await supabaseWithContext
         .from('campaigns')
         .select('campaign_id, campaign_date, total_assigned, status, created_at')
+        .eq('base_id', baseId) // Explicitly filter by base_id (belt-and-suspenders)
+        .order('campaign_date', { ascending: false })
       
-      // Filter by baseId if provided
-      if (baseId) {
-        query = query.eq('base_id', baseId)
+      console.log('[CampaignsTable] Query response:', { data, error })
+      
+      if (error) {
+        console.error('[CampaignsTable] Supabase error:', error)
+        throw error
       }
       
-      const { data, error } = await query.order('campaign_date', { ascending: false })
-      
-      if (error) throw error
-      
+      console.log('[CampaignsTable] Campaigns loaded successfully:', data)
       setCampaigns(data || [])
+      console.log('[CampaignsTable] State updated with campaigns')
     } catch (error) {
-      console.error('Error fetching campaigns:', error)
+      console.error('[CampaignsTable] Error fetching campaigns:', error)
       setError('Failed to load campaigns')
     } finally {
       setIsLoading(false)
+      console.log('[CampaignsTable] Loading complete')
     }
   }
 

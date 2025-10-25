@@ -149,6 +149,64 @@ export async function getJobsByStatus(status: JobStatus): Promise<ScrapingJob[]>
 }
 
 /**
+ * Get the active scraping job
+ * 
+ * Returns the first job with status='active', or the most recent job if none are active.
+ * This is the primary method for determining which base_id to use for multi-tenant operations.
+ * 
+ * @returns The active scraping job, or null if no jobs exist
+ */
+export async function getActiveJob(): Promise<ScrapingJob | null> {
+  try {
+    // First, try to get an active job
+    const { data: activeJobs, error: activeError } = await supabase
+      .from('scraping_jobs')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (activeError) {
+      console.error('Error fetching active job:', activeError);
+      return null;
+    }
+
+    if (activeJobs && activeJobs.length > 0) {
+      return activeJobs[0];
+    }
+
+    // Fallback: get the most recent job
+    const { data: recentJobs, error: recentError } = await supabase
+      .from('scraping_jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (recentError) {
+      console.error('Error fetching recent job:', recentError);
+      return null;
+    }
+
+    return recentJobs && recentJobs.length > 0 ? recentJobs[0] : null;
+  } catch (error) {
+    console.error('Unexpected error fetching active job:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the base_id from the active scraping job
+ * 
+ * This is a convenience method that returns just the base_id for use in API calls.
+ * 
+ * @returns The base_id from the active job, or null if no job exists
+ */
+export async function getActiveBaseId(): Promise<string | null> {
+  const activeJob = await getActiveJob();
+  return activeJob?.base_id || null;
+}
+
+/**
  * Update a scraping job
  */
 export async function updateJob(
@@ -184,7 +242,59 @@ export async function updateJobStatus(
 }
 
 /**
+ * Get job statistics by base_id
+ * Queries global_usernames and daily_assignments using base_id for accurate multi-tenant counts
+ */
+export async function getJobStatisticsByBaseId(baseId: string): Promise<JobStatistics | null> {
+  try {
+    // Get available usernames count (used = false)
+    const { count: availableUsernames } = await supabase
+      .from('global_usernames')
+      .select('*', { count: 'exact', head: true })
+      .eq('base_id', baseId)
+      .eq('used', false);
+
+    // Get used usernames count
+    const { count: usedUsernames } = await supabase
+      .from('global_usernames')
+      .select('*', { count: 'exact', head: true })
+      .eq('base_id', baseId)
+      .eq('used', true);
+
+    // Get total usernames count
+    const { count: totalUsernames } = await supabase
+      .from('global_usernames')
+      .select('*', { count: 'exact', head: true })
+      .eq('base_id', baseId);
+
+    // Get assignments count (all assignments for this base)
+    const { count: totalAssignments } = await supabase
+      .from('daily_assignments')
+      .select('*', { count: 'exact', head: true })
+      .eq('base_id', baseId);
+
+    // Get scrape results count
+    const { count: totalScrapeResults } = await supabase
+      .from('scrape_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('base_id', baseId);
+
+    return {
+      totalUsernames: totalUsernames || 0,
+      usedUsernames: usedUsernames || 0,
+      availableUsernames: availableUsernames || 0,
+      totalAssignments: totalAssignments || 0,
+      totalScrapeResults: totalScrapeResults || 0
+    };
+  } catch (error) {
+    console.error('Error fetching job statistics by base_id:', error);
+    return null;
+  }
+}
+
+/**
  * Get job statistics
+ * @deprecated Use getJobStatisticsByBaseId for accurate multi-tenant counts
  */
 export async function getJobStatistics(jobId: string): Promise<JobStatistics | null> {
   try {
@@ -345,9 +455,14 @@ export async function getJobAssignments(jobId: string): Promise<DailyAssignment[
 
 /**
  * Add usernames to a job
+ * 
+ * @param jobId - The job ID to add usernames to
+ * @param baseId - The base_id for multi-tenant isolation (required)
+ * @param usernames - Array of usernames to add
  */
 export async function addUsernamesToJob(
   jobId: string,
+  baseId: string,
   usernames: Array<{
     id: string;
     username: string;
@@ -355,6 +470,11 @@ export async function addUsernamesToJob(
   }>
 ): Promise<boolean> {
   try {
+    if (!baseId) {
+      console.error('base_id is required for adding usernames');
+      return false;
+    }
+
     const { error } = await supabase
       .from('global_usernames')
       .insert(
@@ -364,7 +484,7 @@ export async function addUsernamesToJob(
           full_name: u.full_name || null,
           job_id: jobId,
           used: false,
-          base_id: 'default_instagram' // Required for RLS policy
+          base_id: baseId // Use provided base_id from context
         }))
       );
 
@@ -382,10 +502,16 @@ export async function addUsernamesToJob(
 
 /**
  * Create assignments for a job
+ * 
+ * @param jobId - The job ID to create assignments for
+ * @param campaignId - The campaign ID
+ * @param baseId - The base_id for multi-tenant isolation (required)
+ * @param assignments - Array of assignments to create
  */
 export async function createJobAssignments(
   jobId: string,
   campaignId: string,
+  baseId: string,
   assignments: Array<{
     id: string;
     username: string;
@@ -395,6 +521,11 @@ export async function createJobAssignments(
   }>
 ): Promise<boolean> {
   try {
+    if (!baseId) {
+      console.error('base_id is required for creating assignments');
+      return false;
+    }
+
     const { error } = await supabase
       .from('daily_assignments')
       .insert(
@@ -407,7 +538,7 @@ export async function createJobAssignments(
           position: a.position,
           job_id: jobId,
           status: 'pending',
-          base_id: 'default_instagram' // Required for RLS policy
+          base_id: baseId // Use provided base_id from context
         }))
       );
 

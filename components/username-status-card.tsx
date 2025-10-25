@@ -3,18 +3,18 @@
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { supabase } from "@/lib/supabase"
+import { createSupabaseClientWithContext } from "@/lib/supabase"
+import { useBase } from "@/contexts/base-context"
+import { useResetOnChange } from "@/hooks/use-page-reset"
 import { AlertCircle, RefreshCw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
-// Status messages were in a constant but are now inlined to simplify the UI module
-
 interface UsernameStatusCardProps {
   onStatusChange?: (isReady: boolean, unusedCount: number, statusMessage: string) => void
-  baseId?: string // Add baseId prop for multi-tenant filtering
 }
 
-export function UsernameStatusCard({ onStatusChange, baseId }: UsernameStatusCardProps) {
+export function UsernameStatusCard({ onStatusChange }: UsernameStatusCardProps) {
+  const { baseId, isLoading: isLoadingBase } = useBase()
   const [unusedCount, setUnusedCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,47 +24,62 @@ export function UsernameStatusCard({ onStatusChange, baseId }: UsernameStatusCar
   const profilesPerTable = Number(process.env.NEXT_PUBLIC_PROFILES_PER_TABLE) || 180
   const dailyTarget = numVATables * profilesPerTable
 
+  // Reset component state when baseId changes (switching between jobs)
+  useResetOnChange(baseId, () => {
+    console.log('[UsernameStatusCard] Resetting state due to baseId change');
+    setUnusedCount(null);
+    setIsLoading(true);
+    setError(null);
+  }, { skipInitial: true });
+
   const fetchUnusedCount = useCallback(async () => {
+    if (!baseId) {
+      setError('No active job found')
+      setIsLoading(false)
+      setUnusedCount(0)
+      onStatusChange?.(false, 0, "No active job found")
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     
     try {
-      let query = supabase
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      
+      const { count, error } = await supabaseWithContext
         .from('global_usernames')
         .select('*', { count: 'exact', head: true })
         .eq('used', false)
-      
-      // Filter by baseId if provided
-      if (baseId) {
-        query = query.eq('base_id', baseId)
-      }
-      
-      const { count, error } = await query
+        .eq('base_id', baseId) // Always filter by base_id
       
       if (error) throw error
       
       const currentCount = count ?? 0
       setUnusedCount(currentCount)
       
-  // Determine readiness and corresponding message
-  const ready = currentCount >= dailyTarget
-  const message = ready ? "You can proceed with the VA assignment." : "Scrape additional followers before proceeding."
+      // Determine readiness and corresponding message
+      const ready = currentCount >= dailyTarget
+      const message = ready ? "You can proceed with the VA assignment." : "Scrape additional followers before proceeding."
 
-  // Notify parent with both readiness state and status message
-  onStatusChange?.(ready, currentCount, message)
+      // Notify parent with both readiness state and status message
+      onStatusChange?.(ready, currentCount, message)
     } catch (err) {
       console.error('Error fetching unused usernames count:', err)
       setError('Failed to load username status')
-  setUnusedCount(0)
-  onStatusChange?.(false, 0, "Scrape additional followers before proceeding.")
+      setUnusedCount(0)
+      onStatusChange?.(false, 0, "Scrape additional followers before proceeding.")
     } finally {
       setIsLoading(false)
     }
   }, [dailyTarget, onStatusChange, baseId])
 
   useEffect(() => {
-    fetchUnusedCount()
-  }, [fetchUnusedCount])
+    if (!isLoadingBase && baseId) {
+      fetchUnusedCount()
+    }
+  }, [fetchUnusedCount, isLoadingBase, baseId])
 
   useEffect(() => {
     // Notify parent immediately when component mounts or count changes

@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { useAssignmentProgress } from "@/contexts/assignment-progress-context"
+import { useBase } from "@/contexts/base-context"
+import { apiPost } from "@/lib/api"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +56,9 @@ export function PaymentsTable({
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false)
   const { toast } = useToast()
   
+  // Get base_id from context
+  const { baseId } = useBase()
+  
   // Use global assignment progress context instead of local state
   const { 
     isAssigning, 
@@ -89,28 +94,28 @@ export function PaymentsTable({
     // always proceeds when the user clicks the menu item. Any feedback
     // is still handled by the toast messages returned from the workflow.
 
+    // Require baseId from context
+    if (!baseId) {
+      toast({
+        title: "No active job",
+        description: "Please select an active scraping job first",
+        variant: "destructive",
+      })
+      return
+    }
+
     // Start assignment using global context
     startAssignment()
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
-
       // Get profiles_per_table: use custom value if provided, otherwise use default from env
       const profilesPerTableToUse = profilesPerTable !== undefined ? profilesPerTable : defaultProfilesPerTable
 
       // STEP 1: Create Campaign & Daily Selection (0% → 33%)
       updateProgress(10, 'creating')
-      const selectionResponse = await fetch(`${apiUrl}/api/daily-selection`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profiles_per_table: profilesPerTableToUse
-        })
+      const selectionResult = await apiPost('/api/daily-selection', baseId, {
+        profiles_per_table: profilesPerTableToUse
       })
-
-      const selectionResult = await selectionResponse.json()
 
       if (!selectionResult.success) {
         toast({
@@ -130,17 +135,9 @@ export function PaymentsTable({
       updateProgress(40, 'distributing')
 
       // Always send profiles_per_table to backend (already determined above)
-      const distributeResponse = await fetch(`${apiUrl}/api/distribute/${campaignId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profiles_per_table: profilesPerTableToUse
-        })
+      const distributeResult = await apiPost(`/api/distribute/${campaignId}`, baseId, {
+        profiles_per_table: profilesPerTableToUse
       })
-
-      const distributeResult = await distributeResponse.json()
 
       if (!distributeResult.success) {
         toast({
@@ -157,11 +154,7 @@ export function PaymentsTable({
       // STEP 3: Sync to Airtable (66% → 100%)
       updateProgress(75, 'syncing')
 
-      const syncResponse = await fetch(`${apiUrl}/api/airtable-sync/${campaignId}`, {
-        method: 'POST'
-      })
-
-      const syncResult = await syncResponse.json()
+      const syncResult = await apiPost(`/api/airtable-sync/${campaignId}`, baseId)
 
       if (!syncResult.success) {
         toast({
@@ -206,10 +199,20 @@ export function PaymentsTable({
     setIsCheckingAvailability(true)
 
     try {
-      // Query Supabase for the count of unused usernames (used = false)
+      if (!baseId) {
+        toast({
+          title: "No active job",
+          description: "Please select an active scraping job first",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Query Supabase for the count of unused usernames (used = false) for current base_id
       const { count, error } = await supabase
         .from('global_usernames')
         .select('*', { count: 'exact', head: true })
+        .eq('base_id', baseId)
         .eq('used', false)
 
       if (error) throw error

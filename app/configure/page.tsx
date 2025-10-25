@@ -12,6 +12,7 @@ import { Platform, addRecent } from '@/lib/recents';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { usePageReset } from '@/hooks/use-page-reset';
 
 type DialogState = 'none' | 'airtable-link' | 'progress';
 
@@ -30,6 +31,16 @@ export default function ConfigurePage() {
   const { toast } = useToast();
   const { logout } = useAuth();
   const [createdJobId, setCreatedJobId] = useState<string | null>(null);
+
+  // Reset all page state when navigating away from this page
+  usePageReset(() => {
+    console.log('[ConfigurePage] Resetting page state on unmount');
+    setDialogState('none');
+    setIsSubmitting(false);
+    setCurrentJobData(null);
+    setAirtableLink('');
+    setCreatedJobId(null);
+  });
 
   const handleJobSubmit = (data: {
     influencer: string;

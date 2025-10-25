@@ -21,6 +21,7 @@ export interface ScrapingJob {
   influencer_name: string;
   platform: Platform;
   airtable_base_id: string;
+  base_id: string; // Multi-tenant isolation key (source of truth from DB)
   num_vas: number | null;
   status: JobStatus;
   created_at: string;

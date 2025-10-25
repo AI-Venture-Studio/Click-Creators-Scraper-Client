@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Plus, X, MoreVertical } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/lib/supabase"
+import { createSupabaseClientWithContext } from "@/lib/supabase"
+import { useBase } from "@/contexts/base-context"
+import { useResetOnChange } from "@/hooks/use-page-reset"
+import { apiPost } from "@/lib/api"
 import { EditSourceProfilesDialog } from "@/components/edit-source-profiles-dialog"
 
 interface InstagramAccount {
@@ -54,10 +57,10 @@ interface DependenciesCardProps {
   onScrapingComplete?: (accounts: ScrapedAccount[], totalFiltered: number) => void
   onScrapingStart?: () => void
   onError?: (error: string) => void
-  baseId?: string // Add baseId prop for multi-tenant filtering
 }
 
-export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError, baseId }: DependenciesCardProps) {
+export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError }: DependenciesCardProps) {
+  const { baseId, isLoading: isLoadingBase } = useBase()
   const [inputValue, setInputValue] = useState("")
   const [accounts, setAccounts] = useState<InstagramAccount[]>([])
   const [totalScrapeCount, setTotalScrapeCount] = useState<number>(150)
@@ -67,6 +70,27 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
   const [progress, setProgress] = useState(0)
   const [progressStep, setProgressStep] = useState<'idle' | 'scraping' | 'ingesting' | 'complete'>('idle')
   const { toast } = useToast()
+
+  // Reset component state when baseId changes (switching between jobs)
+  useResetOnChange(baseId, () => {
+    console.log('[DependenciesCard] Resetting state due to baseId change');
+    setInputValue('');
+    setAccounts([]);
+    setTotalScrapeCount(150);
+    setIsScrapingLoading(false);
+    setIsLoadingProfiles(false);
+    setIsEditDialogOpen(false);
+    setProgress(0);
+    setProgressStep('idle');
+  }, { skipInitial: true });
+
+  // Source profiles are now loaded manually via the "Load source profiles" button
+  // instead of automatically when baseId becomes available
+  // useEffect(() => {
+  //   if (!isLoadingBase && baseId) {
+  //     loadSourceProfiles();
+  //   }
+  // }, [baseId, isLoadingBase]);
 
   const extractUsername = (input: string): string | null => {
     const trimmedInput = input.trim()
@@ -157,23 +181,42 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
   }
 
   const loadSourceProfiles = async () => {
+    console.log('[DependenciesCard] loadSourceProfiles called, baseId:', baseId)
+    
+    if (!baseId) {
+      console.warn('[DependenciesCard] No baseId provided for loading profiles')
+      toast({
+        title: "No active job",
+        description: "Please select an active job first.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoadingProfiles(true)
     
     try {
-      let query = supabase
+      console.log('[DependenciesCard] Fetching profiles for base_id:', baseId)
+      
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      console.log('[DependenciesCard] Supabase client created')
+      
+      // Use the same pattern as edit-source-profiles-dialog: context-aware client + explicit filter
+      const { data, error } = await supabaseWithContext
         .from('source_profiles')
         .select('id, username')
+        .eq('base_id', baseId) // Explicitly filter by base_id (belt-and-suspenders)
+        .order('username', { ascending: true })
       
-      // Filter by baseId if provided
-      if (baseId) {
-        query = query.eq('base_id', baseId)
-      }
-      
-      const { data, error } = await query.order('username', { ascending: true })
+      console.log('[DependenciesCard] Query response:', { data, error })
       
       if (error) {
+        console.error('[DependenciesCard] Supabase error:', error)
         throw error
       }
+      
+      console.log('[DependenciesCard] Profiles loaded successfully:', data)
       
       if (data && data.length > 0) {
         // Convert Supabase profiles to local account format
@@ -189,6 +232,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
           return [...prev, ...newAccounts]
         })
         
+        console.log('[DependenciesCard] State updated with profiles')
         toast({
           title: "Profiles loaded",
           description: `Loaded ${data.length} source profiles from database.`,
@@ -200,7 +244,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
         })
       }
     } catch (error) {
-      console.error('Error loading profiles:', error)
+      console.error('[DependenciesCard] Error loading profiles:', error)
       toast({
         title: "Failed to load profiles",
         description: "Could not load profiles from database. Please try again.",
@@ -208,6 +252,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
       })
     } finally {
       setIsLoadingProfiles(false)
+      console.log('[DependenciesCard] Loading complete')
     }
   }
 
@@ -216,6 +261,15 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
   }
 
   const handleFindAccounts = async () => {
+    if (!baseId) {
+      toast({
+        title: "No active job",
+        description: "Please select an active job first.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (accounts.length === 0) {
       toast({
         title: "No accounts to scrape",
@@ -242,23 +296,13 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
     try {
       const usernames = accounts.map(account => account.username)
       
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
-      
       // STEP 1: Scraping (0% -> 50%)
       setProgress(10)
-      const response = await fetch(`${apiUrl}/api/scrape-followers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          accounts: usernames,
-          targetGender: 'male', // Default to male as requested
-          totalScrapeCount: totalScrapeCount // Send user-defined total count
-        })
+      const result: ApiResponse = await apiPost('/api/scrape-followers', baseId, {
+        accounts: usernames,
+        targetGender: 'male', // Default to male as requested
+        totalScrapeCount: totalScrapeCount // Send user-defined total count
       })
-
-      const result: ApiResponse = await response.json()
 
       if (!result.success) {
         const errorMsg = result.error || 'Failed to scrape followers'
@@ -279,22 +323,15 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
       setProgressStep('ingesting')
       setProgress(60)
       
-      const ingestResponse = await fetch(`${apiUrl}/api/ingest`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profiles: result.data.accounts.map(account => ({
-            id: account.id,
-            username: account.username,
-            full_name: account.fullName
-          }))
-        })
+      const ingestResult = await apiPost('/api/ingest', baseId, {
+        profiles: result.data.accounts.map(account => ({
+          id: account.id,
+          username: account.username,
+          full_name: account.fullName
+        }))
       })
 
       setProgress(80)
-      const ingestResult = await ingestResponse.json()
 
       if (!ingestResult.success) {
         toast({
@@ -472,7 +509,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onProfilesUpdated={loadSourceProfiles}
-        baseId={baseId}
+        baseId={baseId || undefined}
       />
     </Card>
   )

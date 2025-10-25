@@ -23,10 +23,11 @@ import {
 } from '@/types/scraping-jobs';
 import { 
   getJobsByPlatform,
-  getJobStatistics,
+  getJobStatisticsByBaseId,
   updateJobStatus 
 } from '@/lib/scraping-jobs';
 import { Play, Pause, Archive, Eye, Plus, RefreshCw, ExternalLink } from 'lucide-react';
+import { usePageReset } from '@/hooks/use-page-reset';
 
 interface JobListByPlatformProps {
   platform: Platform;
@@ -38,6 +39,15 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Reset component state when unmounting
+  usePageReset(() => {
+    console.log('[JobListByPlatform] Resetting component state on unmount');
+    setJobs([]);
+    setLoading(true);
+    setIsRefreshing(false);
+    setError(null);
+  });
 
   useEffect(() => {
     fetchJobs();
@@ -54,7 +64,12 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
       // Fetch stats for each job
       const jobsWithStats = await Promise.all(
         jobsData.map(async (job) => {
-          const stats = await getJobStatistics(job.job_id);
+          // Use airtable_base_id (base_id) to query stats for multi-tenant isolation
+          const baseId = job.airtable_base_id || job.base_id;
+          const stats = baseId 
+            ? await getJobStatisticsByBaseId(baseId)
+            : null;
+          
           return {
             ...job,
             stats: stats || {
@@ -127,8 +142,8 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{getPlatformDisplayName(platform)} Jobs</CardTitle>
-          <CardDescription>Loading jobs...</CardDescription>
+          <CardTitle>{getPlatformDisplayName(platform)} Campaigns</CardTitle>
+          <CardDescription>Loading campaigns...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -157,9 +172,9 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>{getPlatformDisplayName(platform)} Jobs</CardTitle>
+            <CardTitle>{getPlatformDisplayName(platform)} Campaigns</CardTitle>
             <CardDescription>
-              Manage scraping jobs for {getPlatformDisplayName(platform)}
+              Manage scraping campaigns for {getPlatformDisplayName(platform)}
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -173,7 +188,7 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
             </Button>
             <Button onClick={() => router.push(`/configure?platform=${platform.toLowerCase()}`)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Job
+              New Campaign
             </Button>
           </div>
         </div>
@@ -181,7 +196,7 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
       <CardContent>
         {jobs.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No jobs found for {getPlatformDisplayName(platform)}. Create your first job to get started.
+            No campaigns found for {getPlatformDisplayName(platform)}. Create your first campaign to get started.
           </div>
         ) : (
           <Table>
@@ -190,7 +205,7 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
                 <TableHead className="w-[200px]">Influencer</TableHead>
                 <TableHead className="w-[150px]">Airtable Base</TableHead>
                 <TableHead className="text-center w-[80px]">VAs</TableHead>
-                <TableHead className="text-center w-[120px]">Usernames</TableHead>
+                <TableHead className="text-center w-[120px]">Available Usernames</TableHead>
                 <TableHead className="text-center w-[130px]">Assignments</TableHead>
                 <TableHead className="w-[120px]">Created</TableHead>
               </TableRow>
@@ -237,7 +252,7 @@ export function JobListByPlatform({ platform }: JobListByPlatformProps) {
                       <span className="text-sm font-medium">{job.num_vas || 0}</span>
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <span className="text-sm">{job.stats?.totalUsernames || 0}</span>
+                      <span className="text-sm">{job.stats?.availableUsernames || 0}</span>
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <span className="text-sm">{job.stats?.totalAssignments || 0}</span>

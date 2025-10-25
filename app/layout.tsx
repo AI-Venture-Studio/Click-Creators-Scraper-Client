@@ -7,9 +7,10 @@ import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { Suspense } from "react"
 import { AuthProvider } from "@/contexts/auth-context"
+import { BaseProvider } from "@/contexts/base-context"
 
 export const metadata: Metadata = {
-  title: "instagram marketing tool",
+  title: "social marketing tool",
   description: "Created by AIVS",
 }
 
@@ -22,11 +23,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <AuthProvider>
-          <Suspense>
-            {children}
-            <Toaster />
-            <Analytics />
-          </Suspense>
+          <BaseProvider>
+            <Suspense>
+              {children}
+              <Toaster />
+              <Analytics />
+            </Suspense>
+          </BaseProvider>
         </AuthProvider>
       </body>
     </html>

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Plus, X, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/lib/supabase"
+import { createSupabaseClientWithContext } from "@/lib/supabase"
 
 interface SourceProfile {
   id: string
@@ -44,24 +44,41 @@ export function EditSourceProfilesDialog({
 
   // Fetch profiles when dialog opens
   const fetchProfiles = useCallback(async () => {
+    console.log('[EditSourceProfilesDialog] fetchProfiles called, baseId:', baseId)
+    
+    if (!baseId) {
+      console.warn('[EditSourceProfilesDialog] No baseId provided for fetching profiles')
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     try {
-      let query = supabase
+      console.log('[EditSourceProfilesDialog] Fetching profiles for base_id:', baseId)
+      
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      console.log('[EditSourceProfilesDialog] Supabase client created')
+      
+      // Use the same pattern as username-status-card: context-aware client + explicit filter
+      const { data, error } = await supabaseWithContext
         .from('source_profiles')
         .select('id, username')
+        .eq('base_id', baseId) // Explicitly filter by base_id (belt-and-suspenders)
+        .order('username', { ascending: true })
       
-      // Filter by baseId if provided
-      if (baseId) {
-        query = query.eq('base_id', baseId)
+      console.log('[EditSourceProfilesDialog] Query response:', { data, error })
+      
+      if (error) {
+        console.error('[EditSourceProfilesDialog] Supabase error:', error)
+        throw error
       }
       
-      const { data, error } = await query.order('username', { ascending: true })
-      
-      if (error) throw error
-      
+      console.log('[EditSourceProfilesDialog] Profiles loaded successfully:', data)
       setProfiles(data || [])
+      console.log('[EditSourceProfilesDialog] State updated with profiles')
     } catch (error) {
-      console.error('Error fetching profiles:', error)
+      console.error('[EditSourceProfilesDialog] Error fetching profiles:', error)
       toast({
         title: "Failed to load profiles",
         description: "Could not load profiles from database.",
@@ -69,6 +86,7 @@ export function EditSourceProfilesDialog({
       })
     } finally {
       setIsLoading(false)
+      console.log('[EditSourceProfilesDialog] Loading complete')
     }
   }, [toast, baseId])
 
@@ -131,22 +149,48 @@ export function EditSourceProfilesDialog({
       return
     }
 
+    console.log('[EditSourceProfilesDialog] Adding profile:', { username, baseId })
+
     try {
+      // base_id is required - throw error if not provided
+      if (!baseId) {
+        console.error('[EditSourceProfilesDialog] No baseId provided!')
+        toast({
+          title: "No active job",
+          description: "Please select a job from the sidebar first, then try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
       // Generate a UUID for the new profile
       const profileId = crypto.randomUUID()
       
-      const { data, error } = await supabase
+      console.log('[EditSourceProfilesDialog] Inserting into Supabase:', { 
+        id: profileId, 
+        username, 
+        base_id: baseId 
+      })
+      
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      
+      const { data, error } = await supabaseWithContext
         .from('source_profiles')
         .insert([{ 
           id: profileId, 
           username,
-          base_id: baseId || 'default_instagram' // Use provided baseId or default
+          base_id: baseId // Use provided baseId from context
         }])
         .select()
       
-      if (error) throw error
+      if (error) {
+        console.error('[EditSourceProfilesDialog] Supabase error:', error)
+        throw error
+      }
       
       if (data && data[0]) {
+        console.log('[EditSourceProfilesDialog] Profile added successfully:', data[0])
         setProfiles((prev) => [data[0], ...prev])
         setInputValue("")
         toast({
@@ -155,18 +199,32 @@ export function EditSourceProfilesDialog({
         })
       }
     } catch (error) {
-      console.error('Error adding profile:', error)
+      console.error('[EditSourceProfilesDialog] Error adding profile:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Could not add profile to database.'
       toast({
         title: "Failed to add profile",
-        description: "Could not add profile to database.",
+        description: errorMessage,
         variant: "destructive",
       })
     }
   }
 
   const removeProfile = async (id: string, username: string) => {
+    if (!baseId) {
+      console.error('[EditSourceProfilesDialog] No baseId provided for removing profile')
+      toast({
+        title: "No active job",
+        description: "Cannot remove profile without an active job.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      const { error } = await supabase
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+      
+      const { error } = await supabaseWithContext
         .from('source_profiles')
         .delete()
         .eq('id', id)
@@ -204,19 +262,19 @@ export function EditSourceProfilesDialog({
 
     setIsClearing(true)
     try {
-      let query = supabase
+      // Require baseId - no fallback for multi-tenant isolation
+      if (!baseId) {
+        throw new Error('No active base_id found. Cannot delete profiles without tenant context.')
+      }
+
+      // Create a Supabase client with the base_id context
+      const supabaseWithContext = createSupabaseClientWithContext(baseId)
+
+      const { error } = await supabaseWithContext
         .from('source_profiles')
         .delete()
-      
-      // Only delete profiles for the current base
-      if (baseId) {
-        query = query.eq('base_id', baseId)
-      } else {
-        // If no baseId provided, delete all default_instagram profiles
-        query = query.eq('base_id', 'default_instagram')
-      }
-      
-      const { error } = await query.neq('id', '00000000-0000-0000-0000-000000000000') // Ensure condition exists
+        .eq('base_id', baseId)
+        .neq('id', '00000000-0000-0000-0000-000000000000') // Ensure condition exists
       
       if (error) throw error
       
