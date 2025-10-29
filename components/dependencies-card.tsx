@@ -57,9 +57,10 @@ interface DependenciesCardProps {
   onScrapingComplete?: (accounts: ScrapedAccount[], totalFiltered: number) => void
   onScrapingStart?: () => void
   onError?: (error: string) => void
+  platform?: 'instagram' | 'tiktok' | 'threads' | 'x'
 }
 
-export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError }: DependenciesCardProps) {
+export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError, platform = 'instagram' }: DependenciesCardProps) {
   const { baseId, isLoading: isLoadingBase } = useBase()
   const [inputValue, setInputValue] = useState("")
   const [accounts, setAccounts] = useState<InstagramAccount[]>([])
@@ -70,6 +71,37 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
   const [progress, setProgress] = useState(0)
   const [progressStep, setProgressStep] = useState<'idle' | 'scraping' | 'ingesting' | 'complete'>('idle')
   const { toast } = useToast()
+
+  // Platform-specific text helpers
+  const getPlatformName = () => {
+    const names = {
+      instagram: 'Instagram',
+      tiktok: 'TikTok',
+      threads: 'Threads',
+      x: 'X'
+    }
+    return names[platform] || 'Instagram'
+  }
+
+  const getPlatformUrlPattern = () => {
+    const patterns = {
+      instagram: 'instagram.com',
+      tiktok: 'tiktok.com',
+      threads: 'threads.net',
+      x: 'x.com'
+    }
+    return patterns[platform] || 'instagram.com'
+  }
+
+  const getPlatformPlaceholder = () => {
+    const placeholders = {
+      instagram: 'Enter Instagram username or URL',
+      tiktok: 'Enter TikTok username or URL',
+      threads: 'Enter Threads username or URL',
+      x: 'Enter X username or URL'
+    }
+    return placeholders[platform] || 'Enter username or URL'
+  }
 
   // Reset component state when baseId changes (switching between jobs)
   useResetOnChange(baseId, () => {
@@ -97,18 +129,36 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
 
     // Check if it's a URL
     if (trimmedInput.startsWith("http")) {
-      // Check if it contains instagram
-      if (!trimmedInput.toLowerCase().includes("instagram")) {
+      const urlPattern = getPlatformUrlPattern()
+      
+      // Check if it contains the correct platform
+      if (!trimmedInput.toLowerCase().includes(urlPattern)) {
         return null
       }
 
-      // Regex patterns for Instagram URLs
-      const patterns = [
-        /https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?(?:\?.*)?$/,
-        /https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/(?:\?.*)?$/,
-      ]
+      // Platform-specific URL regex patterns
+      const patterns: Record<string, RegExp[]> = {
+        instagram: [
+          /https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/?(?:\?.*)?$/,
+          /https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]+)\/(?:\?.*)?$/,
+        ],
+        tiktok: [
+          /https?:\/\/(?:www\.)?tiktok\.com\/@([a-zA-Z0-9._]+)\/?(?:\?.*)?$/,
+          /https?:\/\/(?:www\.)?tiktok\.com\/@([a-zA-Z0-9._]+)\/(?:\?.*)?$/,
+        ],
+        threads: [
+          /https?:\/\/(?:www\.)?threads\.net\/@([a-zA-Z0-9._]+)\/?(?:\?.*)?$/,
+          /https?:\/\/(?:www\.)?threads\.net\/@([a-zA-Z0-9._]+)\/(?:\?.*)?$/,
+        ],
+        x: [
+          /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/?(?:\?.*)?$/,
+          /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\/([a-zA-Z0-9_]+)\/(?:\?.*)?$/,
+        ],
+      }
 
-      for (const pattern of patterns) {
+      const platformPatterns = patterns[platform] || patterns.instagram
+
+      for (const pattern of platformPatterns) {
         const match = trimmedInput.match(pattern)
         if (match && match[1]) {
           return match[1]
@@ -116,10 +166,11 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
       }
       return null
     } else {
-      // Validate username format (Instagram usernames can contain letters, numbers, periods, and underscores)
-      const usernamePattern = /^[a-zA-Z0-9._]+$/
+      // Validate username format
+      const usernamePattern = /^@?[a-zA-Z0-9._]+$/
       if (usernamePattern.test(trimmedInput) && trimmedInput.length > 0) {
-        return trimmedInput
+        // Remove @ if present (common for TikTok/X)
+        return trimmedInput.replace(/^@/, '')
       }
       return null
     }
@@ -132,7 +183,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
     if (!username) {
       toast({
         title: "Invalid input",
-        description: "Please enter a valid Instagram username or Instagram URL.",
+        description: `Please enter a valid ${getPlatformName()} username or URL.`,
         variant: "destructive",
       })
       return
@@ -142,7 +193,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
     if (accounts.some((account) => account.username === username)) {
       toast({
         title: "Account already added",
-        description: "This Instagram account is already in your list.",
+        description: `This ${getPlatformName()} account is already in your list.`,
         variant: "destructive",
       })
       return
@@ -166,7 +217,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
     setAccounts((prev) => prev.filter((account) => account.id !== id))
     toast({
       title: "Account removed",
-      description: "The Instagram account has been removed from your list.",
+      description: `The ${getPlatformName()} account has been removed from your list.`,
     })
   }
 
@@ -273,7 +324,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
     if (accounts.length === 0) {
       toast({
         title: "No accounts to scrape",
-        description: "Please add some Instagram accounts first.",
+        description: `Please add some ${getPlatformName()} accounts first.`,
         variant: "destructive",
       })
       return
@@ -301,7 +352,8 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
       const result: ApiResponse = await apiPost('/api/scrape-followers', baseId, {
         accounts: usernames,
         targetGender: 'male', // Default to male as requested
-        totalScrapeCount: totalScrapeCount // Send user-defined total count
+        totalScrapeCount: totalScrapeCount, // Send user-defined total count
+        platform: platform // Include platform in the request
       })
 
       if (!result.success) {
@@ -382,9 +434,9 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle>Find Instagram Accounts</CardTitle>
+            <CardTitle>Find {getPlatformName()} Accounts</CardTitle>
             <p className="text-sm text-muted-foreground mt-1.5">
-              Type in the search bar to add either usernames or links to instagram profiles
+              Type in the search bar to add either usernames or links to {getPlatformName()} profiles
             </p>
           </div>
           <DropdownMenu>
@@ -416,7 +468,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Enter Instagram username or URL"
+            placeholder={getPlatformPlaceholder()}
             className="flex-1"
           />
           <Button onClick={addAccount} variant="outline" size="icon">
@@ -435,7 +487,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
                   </Avatar>
                   <div>
                     <p className="text-sm font-medium">@{account.username}</p>
-                    <p className="text-xs text-muted-foreground">Instagram Account</p>
+                    <p className="text-xs text-muted-foreground">{getPlatformName()} Account</p>
                   </div>
                 </div>
                 <Button
@@ -449,7 +501,7 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError 
               </div>
             ))}
             {accounts.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No Instagram accounts added yet</p>
+              <p className="text-sm text-muted-foreground text-center py-4">No {getPlatformName()} accounts added yet</p>
             )}
           </div>
         </div>

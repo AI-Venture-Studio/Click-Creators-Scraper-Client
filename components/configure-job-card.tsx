@@ -21,8 +21,8 @@ interface ConfigureJobCardProps {
 
 const platforms: { name: Platform; enabled: boolean }[] = [
   { name: 'Instagram', enabled: true },
+  { name: 'TikTok', enabled: true },
   { name: 'Threads', enabled: false },
-  { name: 'TikTok', enabled: false },
   { name: 'X', enabled: false },
 ];
 

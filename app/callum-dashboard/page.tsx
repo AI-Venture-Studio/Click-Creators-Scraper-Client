@@ -207,6 +207,7 @@ function DashboardContent() {
                   onScrapingStart={handleScrapingStart}
                   onScrapingComplete={handleScrapingComplete}
                   onError={handleScrapingError}
+                  platform={activeJob?.platform?.toLowerCase() as 'instagram' | 'tiktok' | 'threads' | 'x' || 'instagram'}
                 />
                 
                 {/* Tabs for Scraped Accounts and Campaigns */}
