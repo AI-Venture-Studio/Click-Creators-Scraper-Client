@@ -22,8 +22,8 @@ interface ConfigureJobCardProps {
 const platforms: { name: Platform; enabled: boolean }[] = [
   { name: 'Instagram', enabled: true },
   { name: 'TikTok', enabled: true },
+  { name: 'X', enabled: true },
   { name: 'Threads', enabled: false },
-  { name: 'X', enabled: false },
 ];
 
 export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJobCardProps) {
