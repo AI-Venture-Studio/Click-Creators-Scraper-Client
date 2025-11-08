@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Plus, X, MoreVertical } from "lucide-react"
+import { Plus, X, MoreVertical, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createSupabaseClientWithContext } from "@/lib/supabase"
 import { useBase } from "@/contexts/base-context"
@@ -81,6 +81,30 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
       x: 'X'
     }
     return names[platform] || 'Instagram'
+  }
+
+  // Platform-specific cost calculation
+  // Rates: TikTok = $2/1000, X = $0.15/1000, Instagram = $1.55/1000
+  const calculateEstimatedCost = () => {
+    if (totalScrapeCount <= 0) return 0
+
+    const rates = {
+      instagram: 1.55,
+      tiktok: 2.0,
+      threads: 1.55, // Assuming same as Instagram
+      x: 0.15
+    }
+
+    const rate = rates[platform] || rates.instagram
+    const cost = (totalScrapeCount / 1000) * rate
+    
+    return cost
+  }
+
+  const getFormattedCost = () => {
+    const cost = calculateEstimatedCost()
+    if (cost < 0.01) return '$0.01'
+    return `$${cost.toFixed(2)}`
   }
 
   const getPlatformUrlPattern = () => {
@@ -546,6 +570,34 @@ export function DependenciesCard({ onScrapingComplete, onScrapingStart, onError,
               <span className="font-medium">{progress}%</span>
             </div>
             <Progress value={progress} className="h-2" />
+          </div>
+        )}
+
+        {/* Cost Estimator */}
+        {totalScrapeCount > 0 && accounts.length > 0 && (
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-green-900">
+                  Estimated Cost: {getFormattedCost()}
+                </p>
+                <p className="text-xs text-green-700">
+                  Scraping {totalScrapeCount.toLocaleString()} {totalScrapeCount === 1 ? 'account' : 'accounts'} on {getPlatformName()}
+                </p>
+              </div>
+              <a
+                href="https://console.apify.com/billing/current-period"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-800 transition-colors"
+              >
+                <span>Check Balance</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+            <p className="text-xs text-green-600">
+              ⚠️ Please confirm you have sufficient credits in your Apify dashboard before proceeding
+            </p>
           </div>
         )}
 
