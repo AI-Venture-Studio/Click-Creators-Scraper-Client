@@ -23,7 +23,7 @@ const platforms: { name: Platform; enabled: boolean }[] = [
   { name: 'Instagram', enabled: true },
   { name: 'TikTok', enabled: true },
   { name: 'X', enabled: true },
-  { name: 'Threads', enabled: false },
+  { name: 'Threads', enabled: true },
 ];
 
 export function ConfigureJobCard({ onSubmit, isSubmitting = false }: ConfigureJobCardProps) {

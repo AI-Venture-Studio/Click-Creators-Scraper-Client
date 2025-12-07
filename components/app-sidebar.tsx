@@ -29,7 +29,7 @@ const platforms = [
   { name: 'Instagram' as Platform, icon: Instagram, route: '/instagram-jobs', enabled: true },
   { name: 'TikTok' as Platform, icon: Music2, route: '/tiktok-jobs', enabled: true },
   { name: 'X' as Platform, icon: Twitter, route: '/x-jobs', enabled: true },
-  { name: 'Threads' as Platform, icon: MessageCircle, route: '/threads-jobs', enabled: false },
+  { name: 'Threads' as Platform, icon: MessageCircle, route: '/threads-jobs', enabled: true },
 ];
 
 export function AppSidebar() {
